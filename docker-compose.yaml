@@ -1,40 +1,43 @@
 services:
   minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: rustfs/rustfs:latest
     container_name: wazuh-minio
-    command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+      RUSTFS_ACCESS_KEY: ${MINIO_ROOT_USER}
+      RUSTFS_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
     volumes:
       - minio-data:/data
     networks: [internal]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     restart: unless-stopped
 
   minio-init:
-    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    image: amazon/aws-cli:latest
     container_name: wazuh-minio-init
     depends_on:
-      minio:
-        condition: service_healthy
+      - minio
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_DEFAULT_REGION: us-east-1
     networks: [internal]
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
-      mc mb --ignore-existing local/dashboard-data &&
-      mc anonymous set download local/dashboard-data
-      "
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        until aws --endpoint-url http://minio:9000 s3 ls >/dev/null 2>&1; do
+          echo "en attente du stockage S3..."; sleep 2
+        done
+        aws --endpoint-url http://minio:9000 s3api create-bucket --bucket dashboard-data || true
+        aws --endpoint-url http://minio:9000 s3api put-bucket-policy --bucket dashboard-data \
+          --policy '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":"*","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::dashboard-data/*"]}]}'
     restart: "no"
 
   postgres:
-    image: postgres:16.14-alpine3.23
+    image: postgres:16-alpine
     container_name: wazuh-vuln-db
-    platform: linux/amd64
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-vuln_tracking}
       POSTGRES_USER: ${POSTGRES_USER:-vuln_app}
@@ -66,8 +69,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
-        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     networks: [internal]
     restart: unless-stopped
 
@@ -88,12 +91,11 @@ services:
       - ./backend/templates:/app/templates
       - ./logs:/app/logs
       - ./backend/static:/app/static
-      - ./backend/templates:/app/templates
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
-        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     networks: [internal]
     restart: "no"
 
