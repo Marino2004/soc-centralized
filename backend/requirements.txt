@@ -12,8 +12,7 @@ alembic
 fastapi
 uvicorn[standard]
 itsdangerous
-ldap3==2.9.1
-PyJWT==2.10.1
+PyJWT[crypto]==2.10.1
 python-multipart
 boto3
 orjson

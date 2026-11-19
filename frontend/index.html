@@ -10,23 +10,17 @@
 <body class="login-page">
 
 <div class="login-wrap">
-  <form id="loginForm" class="login-card">
+  <div id="loginForm" class="login-card">
     <div class="boxLogo">
       <img src="/assets/Q1e6wb5hCU58sRKYk2GGndhxJPw.png" alt="logo" class="idLogo">
     </div>
     <h1>Suivi des vulnérabilités</h1>
     <div class="subtitle">Connectez-vous pour accéder au tableau de bord</div>
 
-    <label for="email">Identifiant</label>
-    <input id="email" name="email" type="text" autocomplete="username" required />
-
-    <label for="password">Mot de passe</label>
-    <input id="password" name="password" type="password" autocomplete="current-password" required />
-
     <div class="error-msg" id="loginError" style="display:none;"></div>
 
-    <button type="submit" id="loginBtn">Se connecter</button>
-  </form>
+    <button type="button" id="loginBtn" style="margin-top:20px; width:100%;">Se connecter avec Keycloak</button>
+  </div>
 </div>
 
 <script type="module" src="/src/pages/login.js"></script>

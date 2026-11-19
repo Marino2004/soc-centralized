@@ -103,7 +103,7 @@ services:
     build: ./frontend
     container_name: wazuh-frontend-web
     ports:
-      - "8088:80"
+      - "127.0.0.1:8088:80"
     depends_on: [minio, vuln-api]
     networks: [internal]
     restart: unless-stopped

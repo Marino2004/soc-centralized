@@ -16,15 +16,19 @@ function wireLogout() {
   if (!btn) return;
 
   btn.addEventListener('click', async () => {
+    let target = '/';
     try {
-      await fetch('/api/auth/logout', {
+      const res = await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });
+      const data = await res.json();
+      // Ferme aussi la session SSO côté Keycloak
+      if (data.logout_url) target = data.logout_url;
     } catch (err) {
       console.error('Erreur lors de la déconnexion:', err);
     } finally {
-      window.location.href = '/';
+      window.location.href = target;
     }
   });
 }
