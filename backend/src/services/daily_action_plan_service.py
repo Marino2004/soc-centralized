@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Union, Optional
 from dotenv import load_dotenv
 from src.clients.wazuh_indexer import WazuhIndexerClient
-from src.collectors.daily_action_plan import DailyActionPlanCollector
+from src.collectors.daily_action_plan import DailyActionPlanCollector, StatesVulnerabilityCollector
+from src.utils.source_utils import states_index_pattern, vuln_source
 from src.utils.date_utils import (
     DEFAULT_DAILY_INDEX_PATTERN,
     get_collection_indices,
@@ -19,7 +20,11 @@ logger = logging.getLogger(__name__)
 
 class DailyActionPlanService:
     def __init__(self, indexer_client: WazuhIndexerClient, index_pattern: str = None):
-        self._collector = DailyActionPlanCollector(indexer_client)
+        self._source = vuln_source()
+        collector_cls = (
+            StatesVulnerabilityCollector if self._source == "states" else DailyActionPlanCollector
+        )
+        self._collector = collector_cls(indexer_client)
         self._index_pattern = index_pattern or os.getenv(
             "WAZUH_INDEXER_INDEX_PATTERN_DAILY", DEFAULT_DAILY_INDEX_PATTERN
         )
@@ -30,7 +35,13 @@ class DailyActionPlanService:
         page_size: int = 1000,
         indices_override: Optional[list[str]] = None,
     ) -> Path:
-        indices = indices_override or get_collection_indices(collection_date, self._index_pattern)
+        if indices_override:
+            indices = indices_override
+        elif self._source == "states":
+            # Inventaire courant : pas de découpage par jour.
+            indices = [states_index_pattern()]
+        else:
+            indices = get_collection_indices(collection_date, self._index_pattern)
         day_label = get_day_label(collection_date)
 
         buckets = self._collector.get_vulnerabilities_by_agent(
@@ -44,6 +55,7 @@ class DailyActionPlanService:
                 "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "collection_date": day_label,
                 "date_to": day_end.strftime("%Y-%m-%dT%H:%M:%SZ"),  # compat VulnerabilityTrackingLoader
+                "source": self._source,
                 "source_indices": indices,
                 "total_buckets": len(buckets),
             },

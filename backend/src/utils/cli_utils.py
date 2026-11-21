@@ -45,9 +45,12 @@ def parse_args() -> ParsedArgs:
 
     parser.add_argument(
         "--only",
-        choices=["all", "kpi_report", "action_plan", "daily_action_plan", "coverage"],
+        choices=["all", "kpi_report", "action_plan", "daily_action_plan", "live_action_plan", "coverage"],
         default="all",
-        help="Exécute uniquement un pipeline (par défaut : tous).",
+        help=(
+            "Exécute uniquement un pipeline (par défaut : tous, hors live_action_plan "
+            "qui ne se lance que explicitement, via son timer)."
+        ),
     )
 
     parser.add_argument(

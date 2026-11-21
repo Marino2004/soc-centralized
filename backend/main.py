@@ -4,6 +4,7 @@ from src.pipelines import (
     run_kpi_report_pipeline,
     run_action_plan_pipeline,
     run_daily_action_plan_pipeline,
+    run_live_action_plan_pipeline,
     run_coverage_pipeline,
 )
 from dotenv import load_dotenv
@@ -38,6 +39,13 @@ def main() -> None:
             index_override=parsed.index_override,
             skip_publish=parsed.local,
         ),
+        "live_action_plan": lambda: run_live_action_plan_pipeline(
+            indexer,
+            BASE_DIR,
+            collection_date=parsed.collection_date,
+            index_override=parsed.index_override,
+            skip_publish=parsed.local,
+        ),
         "coverage": lambda: run_coverage_pipeline(
             parsed.date_to, manager, BASE_DIR,
             older_than=parsed.older_than, reference_fleet=parsed.reference_fleet
@@ -45,7 +53,7 @@ def main() -> None:
     }
 
     pipelines = (
-        all_pipelines
+        {k: v for k, v in all_pipelines.items() if k != "live_action_plan"}
         if parsed.only == "all"
         else {parsed.only: all_pipelines[parsed.only]}
     )

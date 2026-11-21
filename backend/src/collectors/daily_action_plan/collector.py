@@ -15,6 +15,12 @@ class DailyActionPlanCollector:
     def _search(self, index: str, body: dict) -> dict:
         return self._indexer.search(index, body)
 
+    def _build_query(self, after_key: Optional[dict], page_size: int) -> dict:
+        return Q.vulnerabilities_by_agent(after_key=after_key, page_size=page_size)
+
+    def _normalize_bucket(self, bucket: dict) -> dict:
+        return bucket
+
     @safe_call(fallback=[], label="get_vulnerabilities_by_agent", critical=True)
     def get_vulnerabilities_by_agent(
         self,
@@ -35,7 +41,7 @@ class DailyActionPlanCollector:
 
         while page < max_pages:
             page += 1
-            body = Q.vulnerabilities_by_agent(after_key=after_key, page_size=page_size)
+            body = self._build_query(after_key, page_size)
             response = self._search(index_target, body)
             agg = response.get("aggregations", {}).get("vulnerabilities_by_agent", {})
             page_buckets = agg.get("buckets", [])
@@ -43,7 +49,7 @@ class DailyActionPlanCollector:
             if not page_buckets:
                 break
 
-            buckets.extend(page_buckets)
+            buckets.extend(self._normalize_bucket(b) for b in page_buckets)
             logger.info(
                 "Page %d : %d buckets récupérés (total cumulé : %d)",
                 page, len(page_buckets), len(buckets),
